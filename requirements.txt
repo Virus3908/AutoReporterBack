@@ -1,0 +1,9 @@
+request==2.27.1
+torch
+torchaudio
+pyannote.audio
+pyannote.core
+whisper
+ollama
+"fastapi[standard]"
+ffmpeg
