@@ -1,0 +1,15 @@
+database:
+  host: localhost
+  port: 5432
+  dbname: back
+  user: ${DB_USER}
+  password: ${DB_PASSWORD}
+
+s3:
+  endpoint: http://localhost:9000
+  bucket: backendbucket
+  access_key: ${S3_ACCESS_KEY}
+  secret_key: ${S3_SECRET_KEY}
+
+tokens:
+  hf_token: ${HF_TOKEN}

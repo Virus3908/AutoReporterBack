@@ -1,20 +1,26 @@
 import os
 import uvicorn
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, Depends
 from pydantic import BaseModel
-from transcribe import *
-from report import *
+from app.services.transcribe import *
+from app.services.report import *
 import uuid
+
+from sqlalchemy import text
+from app.core.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ['CURL_CA_BUNDLE'] = ''
 
-# Параметры
+app = FastAPI()
+
+Параметры
 WAV_FILE = "audio.wav"
 TRANSCRIPTION_PREFIX = "transcription_"
 REPORT_PREFIX = "report_"
 OUTPUT_EXT = ".txt"
 
-app = FastAPI()
+
 results = {}
 
 
@@ -57,6 +63,10 @@ async def start_reporting(request: FileProcessRequest, background_tasks: Backgro
     background_tasks.add_task(process_report, task_id, request.file_url)
     return {"task_id": task_id, "status_url": f"/status/{task_id}"}
 
+@app.get("/info")
+async def info_response():
+    return
+
 def process_report(task_id: str, file_url: str):
     results[task_id] = "Calculating parts len"
     parts_len = calculate_parts_len(file_url)
@@ -69,6 +79,11 @@ def process_report(task_id: str, file_url: str):
     write_to_output(output_file ,report)
     results[task_id] = f"{output_file}"
 
+@app.post("/api/convert")
+async def test_response(background_tasts: BackgroundTasks):
+    return {"uuid": str(uuid.uuid4())}
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)
+@app.get("/ping")
+async def resp():
+    return {"host": "pong"}
+

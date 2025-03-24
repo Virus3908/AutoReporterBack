@@ -1,9 +1,10 @@
 request==2.27.1
+greenlet>=2.0.0
 torch
 torchaudio
 pyannote.audio
 pyannote.core
-whisper
+openai-whisper
 ollama
 "fastapi[standard]"
 ffmpeg

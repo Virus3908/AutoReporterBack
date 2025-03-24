@@ -77,47 +77,43 @@ def filter_and_merge_segments(segments, min_duration=0.1):
     return merged
 
 # === Шаг 3: Вырезка сегментов и транскрипция Whisper ===
-def transcribe_segments(wav_file, segments):
+def transcribe_segment(wav_file, start, end):
     """Разбивает аудиофайл по диаризации и транскрибирует с Whisper (русский язык)."""
     whisper_model = whisper.load_model("turbo", download_root=MODEL_PATH_WISPER, device=device)  # Можно "small" или "large"
     waveform, sample_rate = torchaudio.load(wav_file)
 
-    transcripts = []
+    # Вырезаем сегмент
+    start_sample = int(start * sample_rate)
+    end_sample = int(end * sample_rate)
+    segment_audio = waveform[:, start_sample:end_sample]
 
-    for speaker, start, end in segments:
-        # Вырезаем сегмент
-        start_sample = int(start * sample_rate)
-        end_sample = int(end * sample_rate)
-        segment_audio = waveform[:, start_sample:end_sample]
+    # Сохраняем временный файл
+    segment_file = f"segment_{start:.2f}_{end:.2f}.wav"
+    torchaudio.save(segment_file, segment_audio, sample_rate)
 
-        # Сохраняем временный файл
-        segment_file = f"segment_{start:.2f}_{end:.2f}.wav"
-        torchaudio.save(segment_file, segment_audio, sample_rate)
-
-        cycle_count = 0
-        # Распознаем текст
-        while True:
-            text = whisper_model.transcribe(segment_file, 
-                                            language="ru",
-                                            beam_size= 10,
-                                            temperature= cycle_count * 2/10,
-                                            initial_prompt= prompt)["text"]
-            
-            # Проверяем, не артефакт ли транскрибции, если нет, го дальше
-            if ((len(text) == 0 or (len(text) > 0 and text.split()[0] != "Субтитры") or cycle_count > 2) and not is_repeatable(text)):
-                break
-            print(text, cycle_count)
-            cycle_count+= 1
-        # Проверка, мы получили артефакт, или Продолжение следует, тогда меняем на пустую строку.
-        if (cycle_count > 2 and len(text.split()) == 3) or text == "Продолжение следует...":
-            text = ""
-        transcripts.append((start, end, speaker, text))
-        # Удаляем временный файл
-        os.remove(segment_file)
+    cycle_count = 0
+    # Распознаем текст
+    while True:
+        text = whisper_model.transcribe(segment_file, 
+                                        language="ru",
+                                        beam_size= 10,
+                                        temperature= cycle_count * 2/10,
+                                        initial_prompt= prompt)["text"]
+        
+        # Проверяем, не артефакт ли транскрибции, если нет, го дальше
+        if ((len(text) == 0 or (len(text) > 0 and text.split()[0] != "Субтитры") or cycle_count > 2) and not is_repeatable(text)):
+            break
+        print(text, cycle_count)
+        cycle_count+= 1
+    # Проверка, мы получили артефакт, или Продолжение следует, тогда меняем на пустую строку.
+    if (cycle_count > 2 and len(text.split()) == 3) or text == "Продолжение следует...":
+        text = ""
+    # Удаляем временный файл
+    os.remove(segment_file)
 
     print("[+] Транскрипция завершена")
     os.remove(wav_file)
-    return transcripts
+    return text
 
 def is_repeatable(text):
     slised = text.split()
