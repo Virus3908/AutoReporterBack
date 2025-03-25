@@ -6,6 +6,7 @@ CREATE TABLE tasks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     type INTEGER NOT NULL,
     status INTEGER DEFAULT 0 NOT NULL,
+    callback_url VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -13,7 +14,7 @@ CREATE TABLE tasks (
 -- Таблица конвертации
 CREATE TABLE convert (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES tasks(id),
     file_url TEXT NOT NULL,
     converted_file_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -23,7 +24,7 @@ CREATE TABLE convert (
 -- Таблица сегментации (diarize)
 CREATE TABLE diarize (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES tasks(id),
     file_url TEXT NOT NULL,
     segments TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -33,7 +34,7 @@ CREATE TABLE diarize (
 -- Таблица транскрипции
 CREATE TABLE transcribe (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES tasks(id),
     start_time FLOAT NOT NULL,
     end_time FLOAT NOT NULL,
     transcription TEXT,
@@ -44,7 +45,7 @@ CREATE TABLE transcribe (
 -- Таблица отчетов
 CREATE TABLE report (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES tasks(id),
     promt TEXT NOT NULL,
     message TEXT NOT NULL,
     report TEXT,
