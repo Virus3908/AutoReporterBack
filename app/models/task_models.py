@@ -33,6 +33,7 @@ class Convert(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=False)
     file_url = Column(Text, nullable=False)
+    audio_len = Column(Float, nullable=True)
     converted_file_url = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     updated_at = Column(TIMESTAMP, nullable=False, server_default=text("CURRENT_TIMESTAMP"))

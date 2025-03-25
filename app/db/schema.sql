@@ -16,6 +16,7 @@ CREATE TABLE convert (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     task_id UUID NOT NULL REFERENCES tasks(id),
     file_url TEXT NOT NULL,
+    audio_len FLOAT,
     converted_file_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL

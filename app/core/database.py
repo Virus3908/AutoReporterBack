@@ -4,7 +4,7 @@ from app.config.settings import settings
 
 DATABASE_URL = settings.get_db_url()
 
-engine = create_async_engine(DATABASE_URL, echo=True, future=True)
+engine = create_async_engine(DATABASE_URL, echo=False, future=True)
 
 AsyncSessionLocal = sessionmaker(
     bind=engine,
