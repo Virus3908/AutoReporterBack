@@ -10,7 +10,6 @@ def get_audio_duration(file_path: str) -> float:
         return frames / float(rate)
 
 def convert_mp4_to_wav(mp4_file, wav_file):
-    """Конвертирует mp4 в wav с частотой 16kHz, mono (одноканальный звук)."""
     (
         ffmpeg
         .input(mp4_file)

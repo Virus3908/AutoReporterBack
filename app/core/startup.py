@@ -5,7 +5,7 @@ from sqlalchemy import text
 from app.core.logger import logger
 
 
-async def check_db_connection(engine: AsyncEngine, retries: int = 5, delay: int = 2):
+async def check_db_connection(engine: AsyncEngine, retries: int = 3, delay: int = 2):
     for attempt in range(1, retries + 1):
         try:
             async with engine.connect() as conn:
@@ -20,7 +20,7 @@ async def check_db_connection(engine: AsyncEngine, retries: int = 5, delay: int 
                 logger.critical("Could not connect to the database after multiple attempts.")
                 raise
             
-async def check_s3_connection(s3_client, retries: int = 5, delay: int = 2):
+async def check_s3_connection(s3_client, retries: int = 3, delay: int = 2):
     for attempt in range(1, retries + 1):
         try:
             s3_client.client.head_bucket(Bucket=s3_client.bucket)

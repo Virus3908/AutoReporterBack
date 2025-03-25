@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 from uuid import UUID
 
 class RequestFile(BaseModel):
@@ -8,3 +8,13 @@ class RequestFile(BaseModel):
 class ResponseStatus(BaseModel):
     uuid: UUID
     status: int
+
+class Segment(BaseModel):
+    start_time: float
+    end_time: float
+    speaker: int
+
+class RequestSegment(BaseModel):
+    file_url: str
+    callback_url: str
+    segment: Segment 

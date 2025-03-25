@@ -14,6 +14,7 @@ class S3Client:
             region_name="us-east-1"
         )
         self.bucket = settings.s3_bucket
+        self.endpoint = settings.s3_endpoint
         
     def check_connection(self) -> bool:
         try:
@@ -25,11 +26,9 @@ class S3Client:
 
     def upload_file(self, file_path: str, object_name: str) -> str:
         self.client.upload_file(file_path, self.bucket, object_name)
-        return f"{self.bucket}/{object_name}"
+        return f"{self.endpoint}/{self.bucket}/{object_name}"
 
-    def upload_fileobj(self, fileobj, object_name: str) -> str:
-        self.client.upload_fileobj(fileobj, self.bucket, object_name)
-        return f"{self.bucket}/{object_name}"
+
 
     def download_file(self, object_name: str, dest_path: str):
         self.client.download_file(self.bucket, object_name, dest_path)

@@ -15,9 +15,9 @@ CREATE TABLE tasks (
 CREATE TABLE convert (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     task_id UUID NOT NULL REFERENCES tasks(id),
-    file_url TEXT NOT NULL,
+    file_url VARCHAR(255) NOT NULL,
     audio_len FLOAT,
-    converted_file_url TEXT,
+    converted_file_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -26,7 +26,7 @@ CREATE TABLE convert (
 CREATE TABLE diarize (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     task_id UUID NOT NULL REFERENCES tasks(id),
-    file_url TEXT NOT NULL,
+    file_url VARCHAR(255) NOT NULL,
     segments TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -36,6 +36,7 @@ CREATE TABLE diarize (
 CREATE TABLE transcribe (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     task_id UUID NOT NULL REFERENCES tasks(id),
+    file_url VARCHAR(255) NOT NULL,
     start_time FLOAT NOT NULL,
     end_time FLOAT NOT NULL,
     transcription TEXT,

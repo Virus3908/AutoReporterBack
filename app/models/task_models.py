@@ -1,6 +1,4 @@
 # app/models/task_models.py
-
-import uuid
 from sqlalchemy import (
     Column, Integer, String, Text, Float, TIMESTAMP,
     ForeignKey, text
@@ -32,9 +30,9 @@ class Convert(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=False)
-    file_url = Column(Text, nullable=False)
+    file_url = Column(String(255), nullable=False)
     audio_len = Column(Float, nullable=True)
-    converted_file_url = Column(Text, nullable=True)
+    converted_file_url = Column(String(255), nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     updated_at = Column(TIMESTAMP, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
 
@@ -46,7 +44,7 @@ class Diarize(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=False)
-    file_url = Column(Text, nullable=False)
+    file_url = Column(String(255), nullable=False)
     segments = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     updated_at = Column(TIMESTAMP, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
@@ -59,6 +57,7 @@ class Transcribe(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=False)
+    file_url = Column(String(255), nullable=False)
     start_time = Column(Float, nullable=False)
     end_time = Column(Float, nullable=False)
     transcription = Column(Text, nullable=True)
