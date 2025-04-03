@@ -2,8 +2,8 @@ import os
 import uvicorn
 from fastapi import FastAPI, BackgroundTasks, Depends
 from pydantic import BaseModel
-from app.services.transcribe import *
-from app.services.report import *
+from app.handlers.transcribe import *
+from app.handlers.report import *
 import uuid
 
 from sqlalchemy import text

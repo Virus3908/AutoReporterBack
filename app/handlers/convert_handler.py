@@ -1,7 +1,9 @@
 import ffmpeg
-from app.core.logger import logger
+from app.utils.logger import get_logger
 import wave
 import contextlib
+
+logger = get_logger("convert")
 
 def get_audio_duration(file_path: str) -> float:
     with contextlib.closing(wave.open(file_path, 'r')) as f:
@@ -19,3 +21,7 @@ def convert_mp4_to_wav(mp4_file, wav_file):
         .run(overwrite_output=True)
     )
     logger.info(f"[+] Конвертировано: {mp4_file} → {wav_file}")
+    
+    
+def handle_convert_task(task, callback_url):
+    print(f"Would process task: {task}, callback: {callback_url}")

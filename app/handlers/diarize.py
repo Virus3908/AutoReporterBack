@@ -1,6 +1,6 @@
 from pyannote.audio.pipelines import SpeakerDiarization
 from app.config.settings import settings
-from app.core.logger import logger
+from app.utils.logger import logger
 import gc
 import torch
 

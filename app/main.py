@@ -1,25 +1,13 @@
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
+from app.consumer.kafka_consumer import start_consumer
+from app.utils.logger import get_logger
 
-from app.core.database import engine
-from app.core.s3_client import s3_client
-from app.core.startup import logger, check_db_connection, check_s3_connection
-from app.core.logger import logger
-from app.routes.routes import router as convert_router
-from app.worker.task_worker import task_worker
-import asyncio
+logger = get_logger("Main")
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+if __name__ == "__main__":
     try:
-        task_loop = asyncio.create_task(task_worker())
-        yield
-        logger.info("Shutting down")
-        task_loop.cancel()
+        logger.info("Starting Kafka consumer service...")
+        start_consumer()
+    except KeyboardInterrupt:
+        logger.info("Kafka consumer stopped by user.")
     except Exception as e:
-        logger.critical(f"Startup failed: {e}")
-        raise    
-    
-app = FastAPI(lifespan=lifespan)
-
-app.include_router(convert_router)
+        logger.exception(f"Unhandled exception in main: {e}")
