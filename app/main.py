@@ -12,9 +12,6 @@ import asyncio
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        await check_db_connection(engine)
-        await check_s3_connection(s3_client)
-        logger.info("All startup checks passed.")
         task_loop = asyncio.create_task(task_worker())
         yield
         logger.info("Shutting down")
@@ -26,7 +23,3 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(convert_router)
-
-@app.get("/info")
-async def info():
-    return {}

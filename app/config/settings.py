@@ -8,7 +8,6 @@ class Settings:
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
-
             cls._instance = super(Settings, cls).__new__(cls)
         return cls._instance
 
@@ -27,36 +26,20 @@ class Settings:
 
         cfg = self._expand_env_vars(raw_cfg)
 
-        db_cfg = cfg["database"]
-        self.db_host = db_cfg["host"]
-        self.db_port = db_cfg["port"]
-        self.db_name = db_cfg["dbname"]
-        self.db_user = db_cfg["user"]
-        self.db_password = db_cfg["password"]
+        kafka_cfg = cfg["kafka"]
+        self.kafka_brokers = kafka_cfg["brokers"]
+        self.kafka_topic = kafka_cfg["topic"]
+        self.kafka_group_id = kafka_cfg.get("group_id", "default-group")
 
-        s3_cfg = cfg["s3"]
-        self.s3_endpoint = s3_cfg["endpoint"]
-        self.s3_bucket = s3_cfg["bucket"]
-        self.s3_access_key = s3_cfg["access_key"]
-        self.s3_secret_key = s3_cfg["secret_key"]
-
-        tokens_cfg =  cfg["tokens"]
+        tokens_cfg = cfg["tokens"]
         self.hf_token = tokens_cfg["hf_token"]
 
     def _create_default_config(self, path: Path):
         default = {
-            "database": {
-                "host": "localhost",
-                "port": 5432,
-                "user": "${DB_USER}",
-                "password": "${DB_PASSWORD}",
-                "dbname": "mydb"
-            },
-            "s3": {
-                "endpoint": "http://localhost:9000",
-                "bucket": "bucket",
-                "access_key": "${S3_ACCESS_KEY}",
-                "secret_key": "${S3_SECRET_KEY}"
+            "kafka": {
+                "brokers": ["localhost:9092"],
+                "topic": "tasks",
+                "group_id": "${KAFKA_GROUP_ID}"
             },
             "server": {
                 "host": "127.0.0.1",
@@ -80,11 +63,5 @@ class Settings:
             return os.getenv(env_var, "")
         else:
             return obj
-
-    def get_db_url(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
-        )
 
 settings = Settings()
