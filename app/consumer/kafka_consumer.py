@@ -5,6 +5,7 @@ from app.handlers.convert_handler import handle_convert_task
 from app.models.task import TaskType
 from app.utils.logger import get_logger
 from app.models.task import KafkaMessage, ConvertTask
+import time
 
 logger = get_logger("KafkaConsumer")
 
@@ -14,7 +15,7 @@ TASK_HANDLERS = {
 }
 
 def start_consumer():
-    logger.info("🟢 Starting Kafka consumer...")
+    logger.info("Starting Kafka consumer...")
 
     consumer = KafkaConsumer(
         settings.kafka_topic,
@@ -27,15 +28,23 @@ def start_consumer():
 
     logger.info("Kafka consumer started. Listening for messages...")
 
-    for msg in consumer:
-        try:
-            outer_msg = KafkaMessage(**msg.value)
-            logger.info(f"Received KafkaMessage: {outer_msg}")
+    while True:
+        records = consumer.poll(timeout_ms=500)
 
-            task_data = json.loads(outer_msg.data)
-            task = ConvertTask(**task_data)
+        if not records:
+            time.sleep(0.1) 
+            continue
 
-            handle_convert_task(task, outer_msg.callback_url)
+        for tp, messages in records.items():
+            for msg in messages:
+                try:
+                    outer_msg = KafkaMessage(**msg.value)
+                    logger.info(f"Received KafkaMessage: {outer_msg}")
 
-        except Exception as e:
-            logger.exception(f"Error processing Kafka message: {e}")
+                    task_data = json.loads(outer_msg.data)
+                    task = ConvertTask(**task_data)
+
+                    handle_convert_task(task, outer_msg.callback_url)
+
+                except Exception as e:
+                    logger.exception(f"Error processing Kafka message: {e}")

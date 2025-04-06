@@ -7,7 +7,7 @@ class KafkaMessage(BaseModel):
     callback_url: str
 
 class ConvertTask(BaseModel):
-    convert_id: UUID
+    task_id: UUID
     file_url: str
     task_type: int
     callback_postfix: str
