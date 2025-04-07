@@ -3,9 +3,10 @@ import time
 from kafka import KafkaConsumer
 from app.config.settings import settings
 from app.models.kafka_message import KafkaMessage
-from app.models.tasks import TaskWithFile, TaskType
+from app.models.tasks import Task, TaskType
 from app.handlers.convert_handler import handle_convert_task
 from app.handlers.diarize_handler import handle_diarize_task
+from app.handlers.transcribe_handler import handle_transcribe_task
 from app.utils.logger import get_logger
 
 logger = get_logger("KafkaConsumer")
@@ -45,11 +46,13 @@ def start_consumer():
                     logger.exception(f"Error processing Kafka message: {e}")
                     
 def dispatcher_kafka_task(outer_msg, task_data):
+    task = Task(**task_data)
     if outer_msg.task_type == TaskType.CONVERT.value:
-        task = TaskWithFile(**task_data)
+        
         handle_convert_task(task, outer_msg.callback_url)
     elif outer_msg.task_type == TaskType.DIARIZE.value:
-        task = TaskWithFile(**task_data)
         handle_diarize_task(task, outer_msg.callback_url)
+    elif outer_msg.task_type == TaskType.TRANSCRIBE.value:
+        handle_transcribe_task(task, outer_msg.callback_url)
     else:
         logger.warning(f"Unknown task type: {outer_msg.task_type}")

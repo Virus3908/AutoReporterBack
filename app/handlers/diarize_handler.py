@@ -4,7 +4,7 @@ import requests
 from pyannote.audio.pipelines import SpeakerDiarization
 from app.config.settings import settings
 from app.utils.logger import get_logger
-from app.models.tasks import TaskWithFile
+from app.models.tasks import Task
 import gc
 import torch
 
@@ -69,7 +69,7 @@ def send_callback(callback_url: str, data: dict) -> requests.Response:
     response.raise_for_status()
     return response
 
-def handle_diarize_task(task: TaskWithFile, callback_url: str):
+def handle_diarize_task(task: Task, callback_url: str):
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             wav_path = os.path.join(tmpdir, f"{task.task_id}.wav")

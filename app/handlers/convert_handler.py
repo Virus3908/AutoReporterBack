@@ -6,6 +6,7 @@ import ffmpeg
 from app.utils.logger import get_logger
 import wave
 import contextlib
+from app.models.tasks import Task
 
 logger = get_logger("convert")
 
@@ -39,7 +40,7 @@ def send_callback(callback_url: str, file_path: str, audio_len: float):
         return response
 
 
-def handle_convert_task(task, callback_url):
+def handle_convert_task(task: Task, callback_url: str):
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             mp4_path = os.path.join(tmpdir, f"{task.task_id}.mp4")
