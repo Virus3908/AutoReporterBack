@@ -1,8 +1,14 @@
+import os
+import tempfile
+import requests
 from pyannote.audio.pipelines import SpeakerDiarization
 from app.config.settings import settings
-from app.utils.logger import logger
+from app.utils.logger import get_logger
+from app.models.tasks import TaskWithFile
 import gc
 import torch
+
+logger = get_logger("convert")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -56,3 +62,39 @@ def filter_and_merge_segments(segments, min_duration=0.1):
                 merged.append(seg)
 
     return merged
+
+def send_callback(callback_url: str, data: dict) -> requests.Response:
+    logger.info(f"Отправка PATCH на {callback_url} с данными: {data}")
+    response = requests.patch(callback_url, json=data)
+    response.raise_for_status()
+    return response
+
+def handle_diarize_task(task: TaskWithFile, callback_url: str):
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            wav_path = os.path.join(tmpdir, f"{task.task_id}.wav")
+
+            logger.info(f"Скачиваем аудиофайл из {task.file_url}")
+            r = requests.get(task.file_url)
+            r.raise_for_status()
+
+            with open(wav_path, "wb") as f:
+                f.write(r.content)
+
+            logger.info("Начинается диаризация...")
+            segments = diarize_audio(wav_path)
+
+            callback_data = {
+                "segments": [
+                    {"speaker": speaker, "start": start, "end": end}
+                    for speaker, start, end in segments
+                ]
+            }
+
+            full_callback_url = callback_url.rstrip("/") + task.callback_postfix.rstrip("/") + f"/{task.task_id}"
+            send_callback(full_callback_url, callback_data)
+
+            logger.info("Callback успешно отправлен")
+
+    except Exception as e:
+        logger.exception(f"Ошибка при обработке diarize-задачи: {e}")

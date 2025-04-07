@@ -2,14 +2,9 @@ from pydantic import BaseModel
 from uuid import UUID
 from enum import Enum
 
-class KafkaMessage(BaseModel):
-    data: str
-    callback_url: str
-
-class ConvertTask(BaseModel):
+class TaskWithFile(BaseModel):
     task_id: UUID
     file_url: str
-    task_type: int
     callback_postfix: str
     
     
@@ -17,3 +12,4 @@ class TaskType(Enum):
     CONVERT = 1
     DIARIZE = 2
     TRANSCRIBE = 3
+    
