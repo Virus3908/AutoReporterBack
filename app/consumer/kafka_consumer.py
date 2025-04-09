@@ -11,48 +11,61 @@ from app.utils.logger import get_logger
 
 logger = get_logger("KafkaConsumer")
 
+
 def start_consumer():
-    logger.info("🟢 Starting Kafka consumer...")
+    logger.info("Starting Kafka consumer")
 
     consumer = KafkaConsumer(
         settings.kafka_topic,
         bootstrap_servers=settings.kafka_brokers,
         auto_offset_reset="earliest",
-        group_id="task-group",
+        group_id=settings.kafka_group_id,
         enable_auto_commit=True,
         value_deserializer=lambda m: json.loads(m.decode("utf-8")),
     )
 
-    logger.info("Kafka consumer started. Listening for messages...")
+    logger.info("Kafka consumer is running and waiting for messages")
 
-    while True:
-        records = consumer.poll(timeout_ms=500)
+    try:
+        while True:
+            records = consumer.poll(timeout_ms=500)
 
-        if not records:
-            time.sleep(0.1)
-            continue
+            if not records:
+                time.sleep(0.1)
+                continue
 
-        for tp, messages in records.items():
-            for msg in messages:
-                try:
-                    outer_msg = KafkaMessage(**msg.value)
-                    logger.info(f"Received KafkaMessage: {outer_msg}")
+            for tp, messages in records.items():
+                for msg in messages:
+                    try:
+                        outer_msg = KafkaMessage(**msg.value)
+                        logger.info(f"Received message: {outer_msg.task_type} (Task ID: {outer_msg.task_id})")
 
-                    task_data = json.loads(outer_msg.data)
-                    
-                    dispatcher_kafka_task(outer_msg, task_data)
+                        task_data = json.loads(outer_msg.data)
+                        handle_task(outer_msg, task_data)
 
-                except Exception as e:
-                    logger.exception(f"Error processing Kafka message: {e}")
-                    
-def dispatcher_kafka_task(outer_msg, task_data):
+                    except Exception as e:
+                        logger.exception(f"Failed to process Kafka message: {e}")
+
+    except KeyboardInterrupt:
+        logger.info("Kafka consumer interrupted by user")
+    except Exception as e:
+        logger.exception(f"Unexpected error in consumer: {e}")
+    finally:
+        consumer.close()
+        logger.info("Kafka consumer has stopped")
+
+
+def handle_task(outer_msg: KafkaMessage, task_data: dict):
     task = Task(**task_data)
+
     if outer_msg.task_type == TaskType.CONVERT.value:
-        
         handle_convert_task(task, outer_msg.callback_url)
+
     elif outer_msg.task_type == TaskType.DIARIZE.value:
         handle_diarize_task(task, outer_msg.callback_url)
+
     elif outer_msg.task_type == TaskType.TRANSCRIBE.value:
         handle_transcribe_task(task, outer_msg.callback_url)
+
     else:
-        logger.warning(f"Unknown task type: {outer_msg.task_type}")
+        logger.warning(f"Unsupported task type received: {outer_msg.task_type}")

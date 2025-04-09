@@ -6,3 +6,8 @@ kafka:
 
 tokens:
   hf_token: ${HF_TOKEN}
+
+ollama:
+  url: ${OLLAMA_URL}
+  model: ${OLLAMA_MODEL}
+  num_context: ${OLLAMA_NUM_CONTEXT}

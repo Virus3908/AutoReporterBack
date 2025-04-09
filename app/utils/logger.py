@@ -1,20 +1,21 @@
 import logging
 import sys
 
+_LOG_FORMAT = "[%(asctime)s] %(levelname)s | %(name)s | %(message)s"
+_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+
 def get_logger(name: str = "app") -> logging.Logger:
     logger = logging.getLogger(name)
-    if logger.handlers:
-        return logger  # уже сконфигурирован
 
-    logger.setLevel(logging.INFO)
+    if not logger.hasHandlers():
+        logger.setLevel(logging.INFO)
 
-    formatter = logging.Formatter(
-        fmt="[%(asctime)s] %(levelname)s | %(name)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+        formatter = logging.Formatter(fmt=_LOG_FORMAT, datefmt=_DATE_FORMAT)
 
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setFormatter(formatter)
+
+        logger.addHandler(stream_handler)
 
     return logger
