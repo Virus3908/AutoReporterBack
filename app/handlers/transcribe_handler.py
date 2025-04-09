@@ -8,7 +8,7 @@ import torch
 from app.utils.logger import get_logger
 from app.models.tasks import Task
 
-logger = get_logger("convert")
+logger = get_logger("transcription")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
