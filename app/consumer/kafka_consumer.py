@@ -38,7 +38,7 @@ def start_consumer():
                 for msg in messages:
                     try:
                         outer_msg = KafkaMessage(**msg.value)
-                        logger.info(f"Received message: {outer_msg.task_type} (Task ID: {outer_msg.task_id})")
+                        logger.info(f"Received message: {outer_msg.task_type}")
 
                         task_data = json.loads(outer_msg.data)
                         handle_task(outer_msg, task_data)

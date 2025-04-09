@@ -8,7 +8,9 @@ _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 def get_logger(name: str = "app") -> logging.Logger:
     logger = logging.getLogger(name)
 
-    if not logger.hasHandlers():
+    logger.propagate = False
+
+    if not logger.handlers:
         logger.setLevel(logging.INFO)
 
         formatter = logging.Formatter(fmt=_LOG_FORMAT, datefmt=_DATE_FORMAT)

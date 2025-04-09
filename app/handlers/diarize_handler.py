@@ -9,7 +9,7 @@ from app.config.settings import settings
 from app.utils.logger import get_logger
 from app.models.tasks import Task
 
-logger = get_logger("convert")
+logger = get_logger("diarize")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
