@@ -41,7 +41,8 @@ message Segment {
 }
 
 message SegmentsTaskResponse {
-  repeated Segment segments = 1;
+  int32 num_of_speakers = 1;
+  repeated Segment segments = 2;
 }
 
 message TranscriptionTaskResponse {

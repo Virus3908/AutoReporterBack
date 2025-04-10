@@ -10,12 +10,13 @@ from app.config.settings import settings
 from app.utils.logger import get_logger
 from app.generated.messages_pb2 import MessageDiarizeTask, Segment, SegmentsTaskResponse, ErrorTaskResponse
 from app.handlers.response import send_callback
+from typing import List, Tuple 
 
 logger = get_logger("diarize")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-def diarize_audio(wav_file_path: str) -> list[tuple[int, float, float]]:
+def diarize_audio(wav_file_path: str) -> Tuple[List[Tuple[int, float, float]], int]:
     logger.info(f"Running diarization on file: {wav_file_path}")
 
     pipeline = SpeakerDiarization.from_pretrained(
@@ -49,7 +50,11 @@ def diarize_audio(wav_file_path: str) -> list[tuple[int, float, float]]:
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-    return filter_and_merge_segments(segments, min_duration=0.1)
+    if not segments:
+        logger.warning("No valid segments found")
+        return [], 0
+
+    return filter_and_merge_segments(segments, min_duration=0.1), len(speaker_map)
 
 def filter_and_merge_segments(segments: list[tuple[int, float, float]], min_duration: float = 0.1) -> list[tuple[int, float, float]]:
     if not segments:
@@ -97,9 +102,10 @@ def process_diarize_task(task: MessageDiarizeTask) -> None:
                 f.write(response.content)
 
             logger.info("Starting diarization...")
-            segments = diarize_audio(wav_path)
+            segments, num_of_speakers = diarize_audio(wav_path)
 
             callback_data = SegmentsTaskResponse(
+                num_of_speakers=num_of_speakers,
                 segments = [
                     Segment(speaker=speaker, start_time=start, end_time=end)
                     for speaker, start, end in segments
