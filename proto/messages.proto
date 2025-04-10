@@ -8,9 +8,11 @@ option go_package = "main/pkg/messages";
 message MessageTranscriptionTask {
   string task_id = 1;
   string file_url = 2;
-  string callback_url = 3;
-  double start_time = 4;
-  double end_time = 5;
+  double start_time = 3;
+  double end_time = 4;
+  string callback_url = 5;
+  string callback_postfix = 6;
+  string error_callback_postfix = 7;
 }
 
 // ===== CONVERT TASK =====
@@ -18,6 +20,8 @@ message MessageConvertTask {
   string task_id = 1;
   string file_url = 2;
   string callback_url = 3;
+  string callback_postfix = 4;
+  string error_callback_postfix = 5;
 }
 
 // ===== DIARIZE TASK =====
@@ -25,6 +29,8 @@ message MessageDiarizeTask {
   string task_id = 1;
   string converted_file_url = 2;
   string callback_url = 3;
+  string callback_postfix = 4;
+  string error_callback_postfix = 5;
 }
 
 // ===== SEGMENT STRUCTURE =====
@@ -40,4 +46,8 @@ message SegmentsTaskResponse {
 
 message TranscriptionTaskResponse {
   string transcription = 1;
+}
+
+message ErrorTaskResponse {
+  string error = 1;
 }
