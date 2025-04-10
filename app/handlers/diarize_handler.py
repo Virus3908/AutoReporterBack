@@ -3,11 +3,13 @@ import tempfile
 import requests
 import gc
 import torch
+from kafka.consumer.fetcher import ConsumerRecord
 
 from pyannote.audio.pipelines import SpeakerDiarization
 from app.config.settings import settings
 from app.utils.logger import get_logger
-from app.models.tasks import Task
+from app.generated.messages_pb2 import MessageDiarizeTask, Segment, SegmentsTaskResponse
+from google.protobuf.json_format import MessageToDict
 
 logger = get_logger("diarize")
 
@@ -72,20 +74,26 @@ def filter_and_merge_segments(segments: list[tuple[int, float, float]], min_dura
     return merged
 
 def send_callback(callback_url: str, data: dict) -> requests.Response:
-    logger.info(f"Sending PATCH callback to {callback_url} with data: {data}")
-    response = requests.patch(callback_url, json=data)
-    response.raise_for_status()
-    return response
+    logger.info(f"PATCH to {callback_url} with data: {data}")
+    try:
+        response = requests.patch(callback_url, json=data)
+        response.raise_for_status()
+        logger.info(f"Callback successful: {response.status_code}")
+    except requests.RequestException as e:
+        logger.exception(f"Failed to send callback: {e}")
+        raise
 
-def handle_diarize_task(task: Task, callback_url: str):
-    logger.info(f"Processing diarize task: {task.task_id}")
+def handle_diarize_task(msg: ConsumerRecord) -> None:
 
     try:
+        task = MessageDiarizeTask()
+        task.ParseFromString(msg.value)
+        logger.info(f"Start convert-task for task_id={task.task_id}")
         with tempfile.TemporaryDirectory() as tmpdir:
             wav_path = os.path.join(tmpdir, f"{task.task_id}.wav")
 
-            logger.info(f"Downloading audio from: {task.file_url}")
-            response = requests.get(task.file_url)
+            logger.info(f"Downloading audio from: {task.converted_file_url}")
+            response = requests.get(task.converted_file_url)
             response.raise_for_status()
 
             with open(wav_path, "wb") as f:
@@ -94,17 +102,16 @@ def handle_diarize_task(task: Task, callback_url: str):
             logger.info("Starting diarization...")
             segments = diarize_audio(wav_path)
 
-            callback_data = {
-                "segments": [
-                    {"speaker": speaker, "start": round(start, 3), "end": round(end, 3)}
+            callback_data = SegmentsTaskResponse(
+                segments = [
+                    Segment(speaker=speaker, start_time=start, end_time=end)
                     for speaker, start, end in segments
-                ]
-            }
+                ],
+            )
 
-            full_callback_url = callback_url.rstrip("/") + task.callback_postfix.rstrip("/") + f"/{task.task_id}"
-            send_callback(full_callback_url, callback_data)
+            full_callback_url = task.callback_url + f"{task.task_id}"
+            send_callback(full_callback_url, MessageToDict(callback_data))
 
-            logger.info("Callback sent successfully.")
 
     except Exception as e:
         logger.exception(f"Error during diarize task {task.task_id}: {e}")

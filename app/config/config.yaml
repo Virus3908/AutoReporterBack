@@ -1,7 +1,10 @@
 kafka:
   brokers:
     - localhost:9092
-  topic: tasks
+  topics: 
+    - convert
+    - diarize
+    - transcribe
   group_id: ${KAFKA_GROUP_ID}
 
 tokens:

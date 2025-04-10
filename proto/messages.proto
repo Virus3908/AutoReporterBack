@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package messages;
+
+option go_package = "main/pkg/messages";
+
+// ===== TRANSCRIPTION TASK =====
+message MessageTranscriptionTask {
+  string task_id = 1;
+  string file_url = 2;
+  string callback_url = 3;
+  double start_time = 4;
+  double end_time = 5;
+}
+
+// ===== CONVERT TASK =====
+message MessageConvertTask {
+  string task_id = 1;
+  string file_url = 2;
+  string callback_url = 3;
+}
+
+// ===== DIARIZE TASK =====
+message MessageDiarizeTask {
+  string task_id = 1;
+  string converted_file_url = 2;
+  string callback_url = 3;
+}
+
+// ===== SEGMENT STRUCTURE =====
+message Segment {
+  int32 speaker = 1;
+  double start_time = 2;
+  double end_time = 3;
+}
+
+message SegmentsTaskResponse {
+  repeated Segment segments = 1;
+}
+
+message TranscriptionTaskResponse {
+  string transcription = 1;
+}

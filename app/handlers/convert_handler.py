@@ -7,7 +7,8 @@ import contextlib
 import ffmpeg
 
 from app.utils.logger import get_logger
-from app.models.tasks import Task
+from app.generated.messages_pb2 import MessageConvertTask
+from kafka.consumer.fetcher import ConsumerRecord
 
 logger = get_logger("convert")
 
@@ -41,21 +42,28 @@ def convert_mp4_to_wav(mp4_file: str, wav_file: str) -> None:
 
 
 def send_callback(callback_url: str, file_path: str, audio_len: float) -> requests.Response:
-    with open(file_path, 'rb') as f:
-        files = {
-            'file': ('audio.wav', f, 'audio/wav'),
-            'audio_len': (None, str(audio_len))
-        }
+    logger.info(f"PATCH to {callback_url} with file: {file_path} and audio_len: {audio_len}")
+    try: 
+        with open(file_path, 'rb') as f:
+            files = {
+                'file': ('audio.wav', f, 'audio/wav'),
+                'audio_len': (None, str(audio_len))
+            }
 
-        logger.info(f"Sending callback to {callback_url}...")
-        response = requests.patch(callback_url, files=files)
-        response.raise_for_status()
-        return response
+            logger.info(f"Sending callback to {callback_url}...")
+            response = requests.patch(callback_url, files=files)
+            response.raise_for_status()
+            logger.info(f"Callback successful: {response.status_code}")
+    except requests.RequestException as e:
+        logger.exception(f"Failed to send callback: {e}")
+        raise
 
 
-def handle_convert_task(task: Task, callback_url: str):
-    logger.info(f"Start convert-task for task_id={task.task_id}")
+def handle_convert_task(msg: ConsumerRecord) -> None:
     try:
+        task = MessageConvertTask()
+        task.ParseFromString(msg.value)
+        logger.info(f"Start convert-task for task_id={task.task_id}")
         with tempfile.TemporaryDirectory() as tmpdir:
             mp4_path = os.path.join(tmpdir, f"{task.task_id}.mp4")
             wav_path = os.path.join(tmpdir, f"{task.task_id}.wav")
@@ -71,11 +79,10 @@ def handle_convert_task(task: Task, callback_url: str):
             duration = get_audio_duration(wav_path)
             logger.info(f"Audio duration: {duration} seconds")
 
-            full_callback_url = callback_url.rstrip("/") + task.callback_postfix.rstrip("/") + f"/{task.task_id}"
+            full_callback_url = task.callback_url + f"{task.task_id}"
             logger.info(f"Callback URL: {full_callback_url}")
 
             send_callback(full_callback_url, wav_path, duration)
-            logger.info("Callback sent successfully")
 
     except Exception as e:
         logger.exception(f"Error during convert-task (task_id={task.task_id}): {e}")

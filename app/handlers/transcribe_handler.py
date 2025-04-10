@@ -6,7 +6,9 @@ import whisper
 import torch
 
 from app.utils.logger import get_logger
-from app.models.tasks import Task
+from kafka.consumer.fetcher import ConsumerRecord
+from app.generated.messages_pb2 import MessageTranscriptionTask, TranscriptionTaskResponse
+from google.protobuf.json_format import MessageToDict
 
 logger = get_logger("transcription")
 
@@ -67,9 +69,11 @@ def send_callback(callback_url: str, data: dict) -> None:
         logger.exception(f"Failed to send callback: {e}")
         raise
 
-def handle_transcribe_task(task: Task, callback_url: str) -> None:
-    logger.info(f"Handling transcription for task: {task.task_id}")
+def handle_transcribe_task(msg: ConsumerRecord) -> None:
     try:
+        task = MessageTranscriptionTask()
+        task.ParseFromString(msg.value)
+        logger.info(f"Start convert-task for task_id={task.task_id}")
         with tempfile.TemporaryDirectory() as tmpdir:
             wav_path = os.path.join(tmpdir, f"{task.task_id}.wav")
 
@@ -84,8 +88,9 @@ def handle_transcribe_task(task: Task, callback_url: str) -> None:
             model = whisper.load_model("turbo", device=device)
             transcription = transcribe_segment(wav_path, task.start_time, task.end_time, model)
 
-            full_callback_url = callback_url.rstrip("/") + task.callback_postfix.rstrip("/") + f"/{task.task_id}"
-            send_callback(full_callback_url, {"text": transcription})
+            full_callback_url = task.callback_url + f"{task.task_id}"
+            callback_data = TranscriptionTaskResponse(transcription=transcription)
+            send_callback(full_callback_url, MessageToDict(callback_data))
 
     except Exception as e:
         logger.exception(f"Error during transcription task: {e}")

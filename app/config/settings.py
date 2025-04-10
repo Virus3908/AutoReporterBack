@@ -38,7 +38,7 @@ class Settings:
 
         kafka_cfg = cfg["kafka"]
         self.kafka_brokers = kafka_cfg["brokers"]
-        self.kafka_topic = kafka_cfg["topic"]
+        self.kafka_topics = kafka_cfg["topics"] 
         self.kafka_group_id = kafka_cfg.get("group_id", "default-group")
 
         tokens_cfg = cfg["tokens"]
@@ -55,7 +55,7 @@ class Settings:
         default = {
             "kafka": {
                 "brokers": ["localhost:9092"],
-                "topic": "tasks",
+                "topics": ["convert", "diarize", "transcribe"],
                 "group_id": "${KAFKA_GROUP_ID}"
             },
             "server": {
