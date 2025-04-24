@@ -1,10 +1,9 @@
 kafka:
   brokers:
     - localhost:9092
-  topics: 
-    - convert
-    - diarize
-    - transcribe
+  consumer: task
+  producer: callback
+   
   group_id: ${KAFKA_GROUP_ID}
 
 s3:
@@ -13,7 +12,7 @@ s3:
   bucket: ${S3_BUCKET_NAME}
   endpoint_url: ${S3_ENDPOINT_URL}
   public_base_url: ${S3_PUBLIC_BASE_URL}
-  region: ${S3_REGION}
+  region: ${AWS_REGION}
 
 
 tokens:

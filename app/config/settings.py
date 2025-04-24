@@ -38,8 +38,9 @@ class Settings:
 
         kafka_cfg = cfg["kafka"]
         self.kafka_brokers = kafka_cfg["brokers"]
-        self.kafka_topics = kafka_cfg["topics"] 
         self.kafka_group_id = kafka_cfg.get("group_id", "default-group")
+        self.kafka_consumer_topic = kafka_cfg["consumer"]
+        self.kafka_producer_topic = kafka_cfg["producer"]
 
         tokens_cfg = cfg["tokens"]
         self.hf_token = tokens_cfg["hf_token"]
@@ -64,7 +65,8 @@ class Settings:
         default = {
             "kafka": {
                 "brokers": ["localhost:9092"],
-                "topics": ["convert", "diarize", "transcribe"],
+                "consumer": "task",
+                "producer": "callback",
                 "group_id": "${KAFKA_GROUP_ID}"
             },
             "server": {
@@ -78,7 +80,6 @@ class Settings:
                 "bucket": "${S3_BUCKET_NAME}",
                 "endpoint_url": "${S3_ENDPOINT_URL}",
                 "public_base_url": "${S3_PUBLIC_BASE_URL}",
-                "region": "{S3_REGION}"
             },
             "tokens": {
                 "hf_token": "${HF_TOKEN}"
