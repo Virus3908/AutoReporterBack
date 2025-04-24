@@ -3,17 +3,20 @@ import tempfile
 import requests
 import gc
 import torch
+from kafka.consumer.fetcher import ConsumerRecord
 
 from pyannote.audio.pipelines import SpeakerDiarization
 from app.config.settings import settings
 from app.utils.logger import get_logger
-from app.models.tasks import Task
+from app.generated.messages_pb2 import MessageDiarizeTask, Segment, SegmentsTaskResponse, ErrorTaskResponse
+from app.handlers.response import send_callback
+from typing import List, Tuple 
 
 logger = get_logger("diarize")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-def diarize_audio(wav_file_path: str) -> list[tuple[int, float, float]]:
+def diarize_audio(wav_file_path: str) -> Tuple[List[Tuple[int, float, float]], int]:
     logger.info(f"Running diarization on file: {wav_file_path}")
 
     pipeline = SpeakerDiarization.from_pretrained(
@@ -47,7 +50,11 @@ def diarize_audio(wav_file_path: str) -> list[tuple[int, float, float]]:
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-    return filter_and_merge_segments(segments, min_duration=0.1)
+    if not segments:
+        logger.warning("No valid segments found")
+        return [], 0
+
+    return filter_and_merge_segments(segments, min_duration=0.1), len(speaker_map)
 
 def filter_and_merge_segments(segments: list[tuple[int, float, float]], min_duration: float = 0.1) -> list[tuple[int, float, float]]:
     if not segments:
@@ -71,40 +78,47 @@ def filter_and_merge_segments(segments: list[tuple[int, float, float]], min_dura
 
     return merged
 
-def send_callback(callback_url: str, data: dict) -> requests.Response:
-    logger.info(f"Sending PATCH callback to {callback_url} with data: {data}")
-    response = requests.patch(callback_url, json=data)
-    response.raise_for_status()
-    return response
+def handle_diarize_task(msg: ConsumerRecord) -> None:
 
-def handle_diarize_task(task: Task, callback_url: str):
-    logger.info(f"Processing diarize task: {task.task_id}")
-
+    try:
+        task = MessageDiarizeTask()
+        task.ParseFromString(msg.value)
+        logger.info(f"Start diarize-task for task_id={task.task_id}")
+        process_diarize_task(task)
+        
+    except Exception as e:
+        logger.exception(f"Error during diarize task: {e}")
+        
+def process_diarize_task(task: MessageDiarizeTask) -> None:
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             wav_path = os.path.join(tmpdir, f"{task.task_id}.wav")
 
-            logger.info(f"Downloading audio from: {task.file_url}")
-            response = requests.get(task.file_url)
+            logger.info(f"Downloading audio from: {task.converted_file_url}")
+            response = requests.get(task.converted_file_url)
             response.raise_for_status()
 
             with open(wav_path, "wb") as f:
                 f.write(response.content)
 
             logger.info("Starting diarization...")
-            segments = diarize_audio(wav_path)
+            segments, num_of_speakers = diarize_audio(wav_path)
 
-            callback_data = {
-                "segments": [
-                    {"speaker": speaker, "start": round(start, 3), "end": round(end, 3)}
+            callback_data = SegmentsTaskResponse(
+                num_of_speakers=num_of_speakers,
+                segments = [
+                    Segment(speaker=speaker, start_time=start, end_time=end)
                     for speaker, start, end in segments
-                ]
-            }
+                ],
+            )
 
-            full_callback_url = callback_url.rstrip("/") + task.callback_postfix.rstrip("/") + f"/{task.task_id}"
+            full_callback_url = task.callback_url + task.callback_postfix + f"{task.task_id}"
             send_callback(full_callback_url, callback_data)
-
-            logger.info("Callback sent successfully.")
-
     except Exception as e:
-        logger.exception(f"Error during diarize task {task.task_id}: {e}")
+        try:
+            full_callback_url = task.callback_url + task.error_callback_postfix + f"{task.task_id}"
+            callback_data = ErrorTaskResponse(error=str(e))
+            send_callback(full_callback_url, callback_data)
+        except Exception as cb_err:
+            logger.error(f"Failed to send error callback: {cb_err}")
+        logger.exception(f"Error during diarize task: {e}")

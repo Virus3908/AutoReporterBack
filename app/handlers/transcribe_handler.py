@@ -6,7 +6,9 @@ import whisper
 import torch
 
 from app.utils.logger import get_logger
-from app.models.tasks import Task
+from kafka.consumer.fetcher import ConsumerRecord
+from app.generated.messages_pb2 import MessageTranscriptionTask, TranscriptionTaskResponse, ErrorTaskResponse
+from app.handlers.response import send_callback
 
 logger = get_logger("transcription")
 
@@ -57,18 +59,18 @@ def transcribe_segment(wav_file: str, start: float, end: float, model) -> str:
         if os.path.exists(segment_path):
             os.remove(segment_path)
 
-def send_callback(callback_url: str, data: dict) -> None:
-    logger.info(f"PATCH to {callback_url} with data: {data}")
-    try:
-        response = requests.patch(callback_url, json=data)
-        response.raise_for_status()
-        logger.info(f"Callback successful: {response.status_code}")
-    except requests.RequestException as e:
-        logger.exception(f"Failed to send callback: {e}")
-        raise
 
-def handle_transcribe_task(task: Task, callback_url: str) -> None:
-    logger.info(f"Handling transcription for task: {task.task_id}")
+def handle_transcribe_task(msg: ConsumerRecord) -> None:
+    try:
+        task = MessageTranscriptionTask()
+        task.ParseFromString(msg.value)
+        logger.info(f"Start transcription-task for task_id={task.task_id}")
+        process_transcribe_task(task)
+
+    except Exception as e:
+        logger.exception(f"Error during transcription task: {e}")
+        
+def process_transcribe_task(task: MessageTranscriptionTask) -> None:
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             wav_path = os.path.join(tmpdir, f"{task.task_id}.wav")
@@ -84,8 +86,14 @@ def handle_transcribe_task(task: Task, callback_url: str) -> None:
             model = whisper.load_model("turbo", device=device)
             transcription = transcribe_segment(wav_path, task.start_time, task.end_time, model)
 
-            full_callback_url = callback_url.rstrip("/") + task.callback_postfix.rstrip("/") + f"/{task.task_id}"
-            send_callback(full_callback_url, {"text": transcription})
-
+            full_callback_url = task.callback_url + task.callback_postfix + f"{task.task_id}"
+            callback_data = TranscriptionTaskResponse(transcription=transcription)
+            send_callback(full_callback_url, callback_data)
     except Exception as e:
+        try:
+            full_callback_url = task.callback_url + task.error_callback_postfix + f"{task.task_id}"
+            callback_data = ErrorTaskResponse(error=str(e))
+            send_callback(full_callback_url, callback_data)
+        except Exception as cb_err:
+            logger.error(f"Failed to send error callback: {cb_err}")
         logger.exception(f"Error during transcription task: {e}")
