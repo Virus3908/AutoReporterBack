@@ -40,6 +40,11 @@ message Segment {
   double end_time = 3;
 }
 
+message ConvertTaskResponse {
+  string converted_file_url = 1;
+  double audio_len = 2;
+}
+
 message SegmentsTaskResponse {
   int32 num_of_speakers = 1;
   repeated Segment segments = 2;

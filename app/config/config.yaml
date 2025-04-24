@@ -7,6 +7,15 @@ kafka:
     - transcribe
   group_id: ${KAFKA_GROUP_ID}
 
+s3:
+  access_key: ${AWS_ACCESS_KEY_ID}
+  secret_key: ${AWS_SECRET_ACCESS_KEY}
+  bucket: ${S3_BUCKET_NAME}
+  endpoint_url: ${S3_ENDPOINT_URL}
+  public_base_url: ${S3_PUBLIC_BASE_URL}
+  region: ${S3_REGION}
+
+
 tokens:
   hf_token: ${HF_TOKEN}
 

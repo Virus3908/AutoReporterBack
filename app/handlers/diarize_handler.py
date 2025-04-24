@@ -87,7 +87,7 @@ def handle_diarize_task(msg: ConsumerRecord) -> None:
         process_diarize_task(task)
         
     except Exception as e:
-        logger.exception(f"Error during diarize task {task.task_id}: {e}")
+        logger.exception(f"Error during diarize task: {e}")
         
 def process_diarize_task(task: MessageDiarizeTask) -> None:
     try:
@@ -115,7 +115,10 @@ def process_diarize_task(task: MessageDiarizeTask) -> None:
             full_callback_url = task.callback_url + task.callback_postfix + f"{task.task_id}"
             send_callback(full_callback_url, callback_data)
     except Exception as e:
-        full_callback_url = task.callback_url + task.error_callback_postfix + f"{task.task_id}"
-        callback_data = ErrorTaskResponse(error=str(e))
-        send_callback(full_callback_url, callback_data)
-        logger.exception(f"Error during transcription task {task.task_id}: {e}")
+        try:
+            full_callback_url = task.callback_url + task.error_callback_postfix + f"{task.task_id}"
+            callback_data = ErrorTaskResponse(error=str(e))
+            send_callback(full_callback_url, callback_data)
+        except Exception as cb_err:
+            logger.error(f"Failed to send error callback: {cb_err}")
+        logger.exception(f"Error during diarize task: {e}")

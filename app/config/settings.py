@@ -50,6 +50,15 @@ class Settings:
         self.ollama_url = ollama_cfg["url"]
         self.ollama_model = ollama_cfg["model"]
         self.ollama_num_context = ollama_cfg["num_context"]
+        
+        s3_cfg = cfg["s3"]
+        self.s3_access_key = s3_cfg["access_key"]
+        self.s3_secret_key = s3_cfg["secret_key"]
+        self.s3_endpoint = s3_cfg["endpoint_url"]
+        self.s3_bucket = s3_cfg["bucket"]
+        self.s3_public_base_url = s3_cfg["public_base_url"]
+        self.s3_region = s3_cfg["region"]
+        
 
     def _create_default_config(self, path: Path):
         default = {
@@ -61,6 +70,15 @@ class Settings:
             "server": {
                 "host": "127.0.0.1",
                 "port": 8000
+            },
+            "s3": {
+                "access_key": "${AWS_ACCESS_KEY_ID}",
+                "secret_key": "${AWS_SECRET_ACCESS_KEY}",
+                "region": "${AWS_REGION}",
+                "bucket": "${S3_BUCKET_NAME}",
+                "endpoint_url": "${S3_ENDPOINT_URL}",
+                "public_base_url": "${S3_PUBLIC_BASE_URL}",
+                "region": "{S3_REGION}"
             },
             "tokens": {
                 "hf_token": "${HF_TOKEN}"
