@@ -1,4 +1,4 @@
-from app.consumer.kafka_consumer import start_all_consumers
+from app.kafka.consumer import start_consumer
 from app.utils.logger import get_logger
 from app.utils.startup import check_s3_connection
 
@@ -9,7 +9,7 @@ if __name__ == "__main__":
         logger.info("Check s3 connection")
         check_s3_connection()
         logger.info("Starting Kafka consumer service...")
-        start_all_consumers()
+        start_consumer()
     except KeyboardInterrupt:
         logger.info("Kafka consumer stopped by user.")
     except Exception as e:

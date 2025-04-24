@@ -6,9 +6,8 @@ import whisper
 import torch
 
 from app.utils.logger import get_logger
-from kafka.consumer.fetcher import ConsumerRecord
-from app.generated.messages_pb2 import MessageTranscriptionTask, TranscriptionTaskResponse, ErrorTaskResponse
-from app.handlers.response import send_callback
+from app.generated.messages_pb2 import MessageTranscriptionTask, TranscriptionTaskResponse, ErrorTaskResponse, WrapperResponse
+from app.kafka.producer import callback_producer
 
 logger = get_logger("transcription")
 
@@ -58,42 +57,36 @@ def transcribe_segment(wav_file: str, start: float, end: float, model) -> str:
     finally:
         if os.path.exists(segment_path):
             os.remove(segment_path)
-
-
-def handle_transcribe_task(msg: ConsumerRecord) -> None:
-    try:
-        task = MessageTranscriptionTask()
-        task.ParseFromString(msg.value)
-        logger.info(f"Start transcription-task for task_id={task.task_id}")
-        process_transcribe_task(task)
-
-    except Exception as e:
-        logger.exception(f"Error during transcription task: {e}")
         
-def process_transcribe_task(task: MessageTranscriptionTask) -> None:
+def process_transcribe_task(task_id: str, task: MessageTranscriptionTask) -> None:
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            wav_path = os.path.join(tmpdir, f"{task.task_id}.wav")
+            wav_path = os.path.join(tmpdir, f"{task_id}.wav")
 
-            logger.info(f"Downloading file: {task.file_url}")
+            logger.info(f"[{task_id}] Downloading file: {task.file_url}")
             r = requests.get(task.file_url)
             r.raise_for_status()
 
             with open(wav_path, "wb") as f:
                 f.write(r.content)
 
-            logger.info("Starting transcription...")
+            logger.info(f"[{task_id}] Starting transcription...")
             model = whisper.load_model("turbo", device=device)
             transcription = transcribe_segment(wav_path, task.start_time, task.end_time, model)
 
-            full_callback_url = task.callback_url + task.callback_postfix + f"{task.task_id}"
-            callback_data = TranscriptionTaskResponse(transcription=transcription)
-            send_callback(full_callback_url, callback_data)
+            callback_data = WrapperResponse(
+                task_id = task_id,
+                transcription = TranscriptionTaskResponse(transcription=transcription)
+            )
+            callback_producer.send_callback(callback_data, key=task_id)
     except Exception as e:
         try:
-            full_callback_url = task.callback_url + task.error_callback_postfix + f"{task.task_id}"
-            callback_data = ErrorTaskResponse(error=str(e))
-            send_callback(full_callback_url, callback_data)
+            error_data = WrapperResponse(
+                task_id = task_id,
+                error = ErrorTaskResponse(error=str(e))
+            )
+            logger.info(f"[{task_id}] Sending error callback to Kafka")
+            callback_producer.send_callback(error_data, key=task_id)
         except Exception as cb_err:
-            logger.error(f"Failed to send error callback: {cb_err}")
-        logger.exception(f"Error during transcription task: {e}")
+            logger.error(f"[{task_id}] Failed to send error callback: {cb_err}")
+        logger.exception(f"[{task_id}] Error during diarize task: {e}")

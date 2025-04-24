@@ -6,31 +6,19 @@ option go_package = "main/pkg/messages";
 
 // ===== TRANSCRIPTION TASK =====
 message MessageTranscriptionTask {
-  string task_id = 1;
-  string file_url = 2;
-  double start_time = 3;
-  double end_time = 4;
-  string callback_url = 5;
-  string callback_postfix = 6;
-  string error_callback_postfix = 7;
+  string file_url = 1;
+  double start_time = 2;
+  double end_time = 3;
 }
 
 // ===== CONVERT TASK =====
 message MessageConvertTask {
-  string task_id = 1;
-  string file_url = 2;
-  string callback_url = 3;
-  string callback_postfix = 4;
-  string error_callback_postfix = 5;
+  string file_url = 1;
 }
 
 // ===== DIARIZE TASK =====
 message MessageDiarizeTask {
-  string task_id = 1;
-  string converted_file_url = 2;
-  string callback_url = 3;
-  string callback_postfix = 4;
-  string error_callback_postfix = 5;
+  string converted_file_url = 1;
 }
 
 // ===== SEGMENT STRUCTURE =====
@@ -45,7 +33,7 @@ message ConvertTaskResponse {
   double audio_len = 2;
 }
 
-message SegmentsTaskResponse {
+message DiarizeTaskResponse {
   int32 num_of_speakers = 1;
   repeated Segment segments = 2;
 }
@@ -56,4 +44,25 @@ message TranscriptionTaskResponse {
 
 message ErrorTaskResponse {
   string error = 1;
+}
+
+// ===== WRAPPER TASK =====
+
+message WrapperTask {
+  string task_id = 1;
+  oneof task {
+    MessageConvertTask convert = 2;
+    MessageDiarizeTask diarize = 3;
+    MessageTranscriptionTask transcription = 4;
+  }
+}
+
+message WrapperResponse {
+  string task_id = 1;
+  oneof payload {
+    ConvertTaskResponse convert = 2;
+    DiarizeTaskResponse diarize = 3;
+    TranscriptionTaskResponse transcription = 4;
+    ErrorTaskResponse error = 5;
+  }
 }

@@ -3,13 +3,13 @@ import tempfile
 import requests
 import gc
 import torch
-from kafka.consumer.fetcher import ConsumerRecord
 
 from pyannote.audio.pipelines import SpeakerDiarization
 from app.config.settings import settings
 from app.utils.logger import get_logger
-from app.generated.messages_pb2 import MessageDiarizeTask, Segment, SegmentsTaskResponse, ErrorTaskResponse
-from app.handlers.response import send_callback
+from app.kafka.producer import callback_producer
+from app.generated.messages_pb2 import MessageDiarizeTask, Segment, DiarizeTaskResponse, ErrorTaskResponse, WrapperResponse
+
 from typing import List, Tuple 
 
 logger = get_logger("diarize")
@@ -44,7 +44,6 @@ def diarize_audio(wav_file_path: str) -> Tuple[List[Tuple[int, float, float]], i
 
     logger.info(f"Diarization complete. Speakers: {len(speaker_map)}")
 
-    # Cleanup to free memory
     del pipeline, diarization
     gc.collect()
     if torch.cuda.is_available():
@@ -77,48 +76,42 @@ def filter_and_merge_segments(segments: list[tuple[int, float, float]], min_dura
             merged.append(seg)
 
     return merged
-
-def handle_diarize_task(msg: ConsumerRecord) -> None:
-
-    try:
-        task = MessageDiarizeTask()
-        task.ParseFromString(msg.value)
-        logger.info(f"Start diarize-task for task_id={task.task_id}")
-        process_diarize_task(task)
         
-    except Exception as e:
-        logger.exception(f"Error during diarize task: {e}")
-        
-def process_diarize_task(task: MessageDiarizeTask) -> None:
+def process_diarize_task(task_id: str, task: MessageDiarizeTask) -> None:
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            wav_path = os.path.join(tmpdir, f"{task.task_id}.wav")
+            wav_path = os.path.join(tmpdir, f"{task_id}.wav")
 
-            logger.info(f"Downloading audio from: {task.converted_file_url}")
+            logger.info(f"[{task_id}] Downloading audio from: {task.converted_file_url}")
             response = requests.get(task.converted_file_url)
             response.raise_for_status()
 
             with open(wav_path, "wb") as f:
                 f.write(response.content)
 
-            logger.info("Starting diarization...")
+            logger.info(f"[{task_id}] Starting diarization...")
             segments, num_of_speakers = diarize_audio(wav_path)
 
-            callback_data = SegmentsTaskResponse(
-                num_of_speakers=num_of_speakers,
-                segments = [
-                    Segment(speaker=speaker, start_time=start, end_time=end)
-                    for speaker, start, end in segments
-                ],
+            callback_data = WrapperResponse(
+                task_id = task_id,
+                diarize = DiarizeTaskResponse(
+                    num_of_speakers=num_of_speakers,
+                        segments = [
+                            Segment(speaker=s, start_time=st, end_time=et)
+                            for s, st, et in segments
+                        ],
+                )
             )
 
-            full_callback_url = task.callback_url + task.callback_postfix + f"{task.task_id}"
-            send_callback(full_callback_url, callback_data)
+            callback_producer.send_callback(callback_data, key=task_id)
     except Exception as e:
         try:
-            full_callback_url = task.callback_url + task.error_callback_postfix + f"{task.task_id}"
-            callback_data = ErrorTaskResponse(error=str(e))
-            send_callback(full_callback_url, callback_data)
+            error_data = WrapperResponse(
+                task_id = task_id,
+                error = ErrorTaskResponse(error=str(e))
+            )
+            logger.info(f"[{task_id}] Sending error callback to Kafka")
+            callback_producer.send_callback(error_data, key=task_id)
         except Exception as cb_err:
-            logger.error(f"Failed to send error callback: {cb_err}")
-        logger.exception(f"Error during diarize task: {e}")
+            logger.error(f"[{task_id}] Failed to send error callback: {cb_err}")
+        logger.exception(f"[{task_id}] Error during diarize task: {e}")
