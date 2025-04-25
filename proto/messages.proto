@@ -21,6 +21,12 @@ message MessageDiarizeTask {
   string converted_file_url = 1;
 }
 
+// ===== REPORT TASK =====
+message MessageReportTask {
+  string message = 1;
+  string prompt = 2;
+}
+
 // ===== SEGMENT STRUCTURE =====
 message Segment {
   int32 speaker = 1;
@@ -42,6 +48,10 @@ message TranscriptionTaskResponse {
   string transcription = 1;
 }
 
+message ReportTaskResponse {
+  string text = 1;
+}
+
 message ErrorTaskResponse {
   string error = 1;
 }
@@ -54,6 +64,8 @@ message WrapperTask {
     MessageConvertTask convert = 2;
     MessageDiarizeTask diarize = 3;
     MessageTranscriptionTask transcription = 4;
+    MessageReportTask semi_report = 5;
+    MessageReportTask report = 6;
   }
 }
 
@@ -63,6 +75,8 @@ message WrapperResponse {
     ConvertTaskResponse convert = 2;
     DiarizeTaskResponse diarize = 3;
     TranscriptionTaskResponse transcription = 4;
-    ErrorTaskResponse error = 5;
+    ReportTaskResponse semi_report = 5;
+    ReportTaskResponse report = 6;
+    ErrorTaskResponse error = 7;
   }
 }
