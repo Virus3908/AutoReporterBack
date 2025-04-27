@@ -29,7 +29,7 @@ def request_to_llm(message: str, prompt: str) -> str:
         response: ChatResponse = chat(
             model=settings.ollama_model,
             messages=message_payload,
-            options={'num_ctx': settings.ollama_num_context}
+            options={'num_ctx': int(settings.ollama_num_context)}
         )
         content = response.message.content.strip()
         logger.info(f"LLM response:\n{content}")
