@@ -87,4 +87,4 @@ def process_convert_task(task_id: str, task: MessageConvertTask) -> None:
             callback_producer.send_callback(error_data, key=task_id)
         except Exception as cb_err:
             logger.error(f"[{task_id}] Failed to send error callback: {cb_err}")
-        logger.exception(f"[{task_id}] Error during diarize task: {e}")
+        logger.exception(f"[{task_id}] Error during convert task: {e}")
