@@ -1,6 +1,7 @@
 import time
 import threading
 from kafka import KafkaConsumer
+from kafka.structs import OffsetAndMetadata
 from app.config.settings import settings
 from app.utils.logger import get_logger
 from app.generated.messages_pb2 import WrapperTask
@@ -43,7 +44,7 @@ def start_main_consumer():
         bootstrap_servers=settings.kafka_brokers,
         auto_offset_reset="earliest",
         group_id=f"{settings.kafka_group_id}-{topic}",
-        enable_auto_commit=True,
+        enable_auto_commit=False,
         value_deserializer=lambda m: m,
     )
 
@@ -61,9 +62,10 @@ def start_main_consumer():
                         wrapper.ParseFromString(msg.value)
                         logger.info(f"Received task of type: {wrapper.WhichOneof('task')} at offset {msg.offset}")
                         handle_wrapper_task(wrapper)
+                        consumer.commit(offsets={tp: OffsetAndMetadata(msg.offset + 1, None, -1)})
 
                     except Exception as e:
-                        logger.exception(f"Failed to process message: {e}")
+                        logger.exception(f"Failed to process message: {e}")                        
 
     except KeyboardInterrupt:
         logger.info("Kafka consumer interrupted by user")
