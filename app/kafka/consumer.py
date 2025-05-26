@@ -1,16 +1,19 @@
-import time
 import threading
+import time
+
 from kafka import KafkaConsumer
 from kafka.structs import OffsetAndMetadata
+
 from app.config.settings import settings
-from app.utils.logger import get_logger
 from app.generated.messages_pb2 import WrapperTask
 from app.handlers.convert_handler import process_convert_task
 from app.handlers.diarize_handler import process_diarize_task
-from app.handlers.transcribe_handler import process_transcribe_task
 from app.handlers.summarize_handler import process_report_task
+from app.handlers.transcribe_handler import process_transcribe_task
+from app.utils.logger import get_logger
 
 logger = get_logger("KafkaConsumer")
+
 
 def handle_wrapper_task(wrapper: WrapperTask):
     task_id = wrapper.task_id
@@ -24,12 +27,12 @@ def handle_wrapper_task(wrapper: WrapperTask):
 
     elif task_type == "transcription":
         process_transcribe_task(task_id, wrapper.transcription)
-        
+
     elif task_type == "semi_report":
-        process_report_task(True, task_id, wrapper.semi_report) 
-        
+        process_report_task(True, task_id, wrapper.semi_report)
+
     elif task_type == "report":
-        process_report_task(False, task_id, wrapper.report)     
+        process_report_task(False, task_id, wrapper.report)
 
     else:
         logger.warning(f"Unsupported task type: {task_type}")
@@ -60,12 +63,16 @@ def start_main_consumer():
                     try:
                         wrapper = WrapperTask()
                         wrapper.ParseFromString(msg.value)
-                        logger.info(f"Received task of type: {wrapper.WhichOneof('task')} at offset {msg.offset}")
+                        logger.info(
+                            f"Received task of type: {wrapper.WhichOneof('task')} at offset {msg.offset}"
+                        )
                         handle_wrapper_task(wrapper)
-                        consumer.commit(offsets={tp: OffsetAndMetadata(msg.offset + 1, None, -1)})
+                        consumer.commit(
+                            offsets={tp: OffsetAndMetadata(msg.offset + 1, None, -1)}
+                        )
 
                     except Exception as e:
-                        logger.exception(f"Failed to process message: {e}")                        
+                        logger.exception(f"Failed to process message: {e}")
 
     except KeyboardInterrupt:
         logger.info("Kafka consumer interrupted by user")

@@ -1,17 +1,22 @@
 import os
 import tempfile
+
 import requests
+import torch
 import torchaudio
 import whisper
-import torch
 
-from app.utils.logger import get_logger
-from app.generated.messages_pb2 import MessageTranscriptionTask, TranscriptionTaskResponse, ErrorTaskResponse, WrapperResponse
+from app.generated.messages_pb2 import (ErrorTaskResponse,
+                                        MessageTranscriptionTask,
+                                        TranscriptionTaskResponse,
+                                        WrapperResponse)
 from app.kafka.producer import callback_producer
+from app.utils.logger import get_logger
 
 logger = get_logger("transcription")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 def is_repeatable(text: str) -> bool:
     words = text.split()
@@ -19,6 +24,7 @@ def is_repeatable(text: str) -> bool:
         return False
     unique_ratio = len(set(words)) / len(words)
     return unique_ratio < 0.2
+
 
 def transcribe_segment(wav_file: str, start: float, end: float, model) -> str:
     waveform, sample_rate = torchaudio.load(wav_file)
@@ -44,9 +50,7 @@ def transcribe_segment(wav_file: str, start: float, end: float, model) -> str:
             logger.debug(f"[Cycle {cycle}] Transcription: {text}")
 
             if (
-                not text
-                or (text and text.split()[0] != "Субтитры")
-                or cycle >= 2
+                not text or (text and text.split()[0] != "Субтитры") or cycle >= 2
             ) and not is_repeatable(text):
                 break
 
@@ -57,7 +61,8 @@ def transcribe_segment(wav_file: str, start: float, end: float, model) -> str:
     finally:
         if os.path.exists(segment_path):
             os.remove(segment_path)
-        
+
+
 def process_transcribe_task(task_id: str, task: MessageTranscriptionTask) -> None:
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -72,18 +77,19 @@ def process_transcribe_task(task_id: str, task: MessageTranscriptionTask) -> Non
 
             logger.info(f"[{task_id}] Starting transcription...")
             model = whisper.load_model("turbo", device=device)
-            transcription = transcribe_segment(wav_path, task.start_time, task.end_time, model)
+            transcription = transcribe_segment(
+                wav_path, task.start_time, task.end_time, model
+            )
 
             callback_data = WrapperResponse(
-                task_id = task_id,
-                transcription = TranscriptionTaskResponse(transcription=transcription)
+                task_id=task_id,
+                transcription=TranscriptionTaskResponse(transcription=transcription),
             )
             callback_producer.send_callback(callback_data, key=task_id)
     except Exception as e:
         try:
             error_data = WrapperResponse(
-                task_id = task_id,
-                error = ErrorTaskResponse(error=str(e))
+                task_id=task_id, error=ErrorTaskResponse(error=str(e))
             )
             logger.info(f"[{task_id}] Sending error callback to Kafka")
             callback_producer.send_callback(error_data, key=task_id)
