@@ -1,27 +1,29 @@
+import gc
 import os
 import tempfile
+from typing import List, Tuple
+
 import requests
-import gc
 import torch
-
 from pyannote.audio.pipelines import SpeakerDiarization
-from app.config.settings import settings
-from app.utils.logger import get_logger
-from app.kafka.producer import callback_producer
-from app.generated.messages_pb2 import MessageDiarizeTask, Segment, DiarizeTaskResponse, ErrorTaskResponse, WrapperResponse
 
-from typing import List, Tuple 
+from app.config.settings import settings
+from app.generated.messages_pb2 import (DiarizeTaskResponse, ErrorTaskResponse,
+                                        MessageDiarizeTask, Segment,
+                                        WrapperResponse)
+from app.kafka.producer import callback_producer
+from app.utils.logger import get_logger
 
 logger = get_logger("diarize")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+
 def diarize_audio(wav_file_path: str) -> Tuple[List[Tuple[int, float, float]], int]:
     logger.info(f"Running diarization on file: {wav_file_path}")
 
     pipeline = SpeakerDiarization.from_pretrained(
-        "pyannote/speaker-diarization-3.1",
-        use_auth_token=settings.hf_token
+        "pyannote/speaker-diarization-3.1", use_auth_token=settings.hf_token
     )
     pipeline.to(torch.device(device))
 
@@ -55,7 +57,10 @@ def diarize_audio(wav_file_path: str) -> Tuple[List[Tuple[int, float, float]], i
 
     return filter_and_merge_segments(segments, min_duration=0.1), len(speaker_map)
 
-def filter_and_merge_segments(segments: list[tuple[int, float, float]], min_duration: float = 0.1) -> list[tuple[int, float, float]]:
+
+def filter_and_merge_segments(
+    segments: list[tuple[int, float, float]], min_duration: float = 0.1
+) -> list[tuple[int, float, float]]:
     if not segments:
         logger.warning("No segments to process after diarization.")
         return []
@@ -76,13 +81,16 @@ def filter_and_merge_segments(segments: list[tuple[int, float, float]], min_dura
             merged.append(seg)
 
     return merged
-        
+
+
 def process_diarize_task(task_id: str, task: MessageDiarizeTask) -> None:
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             wav_path = os.path.join(tmpdir, f"{task_id}.wav")
 
-            logger.info(f"[{task_id}] Downloading audio from: {task.converted_file_url}")
+            logger.info(
+                f"[{task_id}] Downloading audio from: {task.converted_file_url}"
+            )
             response = requests.get(task.converted_file_url)
             response.raise_for_status()
 
@@ -93,22 +101,21 @@ def process_diarize_task(task_id: str, task: MessageDiarizeTask) -> None:
             segments, num_of_speakers = diarize_audio(wav_path)
 
             callback_data = WrapperResponse(
-                task_id = task_id,
-                diarize = DiarizeTaskResponse(
+                task_id=task_id,
+                diarize=DiarizeTaskResponse(
                     num_of_speakers=num_of_speakers,
-                        segments = [
-                            Segment(speaker=s, start_time=st, end_time=et)
-                            for s, st, et in segments
-                        ],
-                )
+                    segments=[
+                        Segment(speaker=s, start_time=st, end_time=et)
+                        for s, st, et in segments
+                    ],
+                ),
             )
 
             callback_producer.send_callback(callback_data, key=task_id)
     except Exception as e:
         try:
             error_data = WrapperResponse(
-                task_id = task_id,
-                error = ErrorTaskResponse(error=str(e))
+                task_id=task_id, error=ErrorTaskResponse(error=str(e))
             )
             logger.info(f"[{task_id}] Sending error callback to Kafka")
             callback_producer.send_callback(error_data, key=task_id)
